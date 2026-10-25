@@ -58,13 +58,13 @@ The assignment asked for a migration plan covering scoping, migration approach, 
 
 ## Implementation steps
 
-Each step lists what was done and why. Screenshots are in [`screenshots/`](screenshots/).
+Each step lists what was done and why.
 
 ### 1. Create the DMS replication instance
 
 <img width="1581" height="172" alt="image" src="https://github.com/user-attachments/assets/0cafc489-4a6b-4ba6-bc03-2a7f37c99365" />
 
-- **What:** Created `mysql-prod-replication`: dms.t3.medium (2 vCPU, 4 GiB), 20 GiB storage, DMS engine 3.5.4, Single-AZ ("Dev or test workload"), publicly accessible. ([01](screenshots/01-dms-replication-instance-name.png)–[03](screenshots/03-dms-replication-instance-available.png))
+- **What:** Created `mysql-prod-replication`: dms.t3.medium (2 vCPU, 4 GiB), 20 GiB storage, DMS engine 3.5.4, Single-AZ ("Dev or test workload"), publicly accessible. 
 - **Why:** The replication instance is the compute that runs migration tasks. Its storage holds logs and cached changes during a task.
 - **How it works:** DMS runs a managed EC2-based host. It reads from the source, transforms if needed, and writes to the target.
 - **Considerations:** Single-AZ is fine for a lab. Production would use Multi-AZ so a host failure doesn't stop a multi-day load. Public access was required here because the source was reached over the internet.
@@ -73,18 +73,18 @@ Each step lists what was done and why. Screenshots are in [`screenshots/`](scree
 
 <img width="1229" height="302" alt="image" src="https://github.com/user-attachments/assets/49dcfcd8-64e3-40b9-b09e-f6ca0d04bfc1" />
 
-- **What:** Created `database-1` with the MySQL engine on db.t4g.micro in us-east-2a, master user `admin`, port 3306, default VPC, publicly accessible. ([04](screenshots/04-rds-engine-mysql.png), [05](screenshots/05-rds-database-available.png), [08](screenshots/08-rds-connectivity-security.png))
+- **What:** Created `database-1` with the MySQL engine on db.t4g.micro in us-east-2a, master user `admin`, port 3306, default VPC, publicly accessible. 
 - **Why:** RDS for MySQL matches the source engine, so tables move without conversion.
 
 ### 3. Open network access to RDS
 
-- **What:** Edited the default security group's inbound rules. Added `MYSQL/Aurora`, TCP 3306, source `0.0.0.0/0`. ([09](screenshots/09-rds-security-group-inbound-rules.png))
+- **What:** Edited the default security group's inbound rules. Added `MYSQL/Aurora`, TCP 3306, source `0.0.0.0/0`. 
 
 <img width="1613" height="382" alt="image" src="https://github.com/user-attachments/assets/b7b1f112-f7d6-4ecf-be49-77cf71dced19" />
 
 
 - **Why:** The laptop and the DMS replication instance needed to reach RDS on 3306.
-- **Considerations:** `0.0.0.0/0` exposes the database login to the entire internet. It worked for the lab but should be narrowed. See [Security review](#security-review).
+- **Considerations:** `0.0.0.0/0` exposes the database login to the entire internet. It worked for the lab but should be narrowed.
 
 ### 4. Verify connectivity with a SQL client
 
@@ -94,7 +94,7 @@ Each step lists what was done and why. Screenshots are in [`screenshots/`](scree
 -AWSRDS
 <img width="861" height="787" alt="image" src="https://github.com/user-attachments/assets/04605ab9-e3a5-4904-ba32-905105668911" />
 
-- **What:** Added both databases to Sqlectron (`on-premise` with user `root`, `awsrds` with user `admin`) and ran connection tests. Both reported "Successfully connected." ([06](screenshots/06-sqlectron-source-connection-test.png), [07](screenshots/07-sqlectron-source-databases.png), [11](screenshots/11-sqlectron-rds-connection-test.png), [12](screenshots/12-sqlectron-both-servers.png))
+- **What:** Added both databases to Sqlectron (`on-premise` with user `root`, `awsrds` with user `admin`) and ran connection tests. Both reported "Successfully connected." 
 
   <img width="658" height="303" alt="image" src="https://github.com/user-attachments/assets/8fb5085f-87b5-47b0-b242-45beeff647f1" />
 - **Why:** Proving basic reachability first separates network problems from DMS configuration problems.
@@ -102,18 +102,18 @@ Each step lists what was done and why. Screenshots are in [`screenshots/`](scree
 ### 5. Create and test DMS endpoints
 
 - **What:**
-  - Source endpoint `on-premise`: MySQL engine, server IP, port 3306, user `root`, SSL mode `none`. ([13](screenshots/13-dms-source-endpoint-type.png), [14](screenshots/14-dms-source-endpoint-config.png))
+  - Source endpoint `on-premise`: MySQL engine, server IP, port 3306, user `root`, SSL mode `none`. 
   - 
  <img width="824" height="206" alt="image" src="https://github.com/user-attachments/assets/0aa13a90-7594-4906-a6c7-89f480d93961" />
 - <img width="666" height="683" alt="image" src="https://github.com/user-attachments/assets/198c8612-a370-4e3e-88d5-5c2daf9eddff" />
 
    ##
-   - Target endpoint `database-1`: chose the RDS instance from the list, MySQL engine, user `admin`, SSL mode `none`. ([17](screenshots/17-dms-target-endpoint-type.png), [18](screenshots/18-dms-target-endpoint-config.png))
+   - Target endpoint `database-1`: chose the RDS instance from the list, MySQL engine, user `admin`, SSL mode `none`. 
      
 <img width="799" height="300" alt="image" src="https://github.com/user-attachments/assets/5178f262-fb89-411a-a622-f44b967355ab" />
 <img width="798" height="866" alt="image" src="https://github.com/user-attachments/assets/abbace24-1b18-45ed-9b47-0f7871605178" />
 
-   - Ran **Test endpoint connection** from the replication instance for each. Both returned `Successful`, and both endpoints show `Active`. ([16](screenshots/16-dms-source-endpoint-test-success.png), [19](screenshots/19-dms-target-endpoint-test-success.png), [20](screenshots/20-dms-endpoints-active.png))
+   - Ran **Test endpoint connection** from the replication instance for each. Both returned `Successful`, and both endpoints show `Active`. 
  
    -<img width="1153" height="219" alt="image" src="https://github.com/user-attachments/assets/d802ad3f-9fe1-4616-b5c1-0e0ef30e2769" />
 - **Why:** An endpoint stores connection details. The test proves the replication instance itself, not just the laptop, can reach each database.
@@ -122,7 +122,7 @@ Each step lists what was done and why. Screenshots are in [`screenshots/`](scree
 
 <img width="541" height="119" alt="image" src="https://github.com/user-attachments/assets/80371ecd-2594-4242-9bbe-4f4b31b2ff45" />
 
-- **What:** Created task `db-migration`: ([21](screenshots/21-dms-task-identifier.png)–[25](screenshots/25-dms-task-startup.png))
+- **What:** Created task `db-migration`: 
   - Provisioned mode on `mysql-prod-replication`
   - Task type **Migrate only (full load)**
   - **Full LOB mode**
